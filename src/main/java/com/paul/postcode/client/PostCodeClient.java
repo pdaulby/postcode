@@ -9,6 +9,7 @@ import io.vavr.control.Either;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
@@ -20,14 +21,18 @@ import java.net.http.HttpResponse;
 
 @Component
 public class PostCodeClient {
-    private static final String baseUrl = "http://api.postcodes.io/postcodes/";
+
+    @Value("${postcode-api}")
+    private String host;
+    private String api =  "/postcodes/";
     @Autowired
     @Qualifier("postcode")
     private HttpClient client;
 
     public Either<HttpError, PostCodeResult> getPostcodeResult(String postcode) {
+        System.out.println(host + api);
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + StringUtils.deleteWhitespace(postcode)))
+                .uri(URI.create(host + api + StringUtils.deleteWhitespace(postcode)))
                 .header("Accept", "application/json")
                 .GET()
                 .build();

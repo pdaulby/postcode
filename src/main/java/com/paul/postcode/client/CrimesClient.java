@@ -8,6 +8,7 @@ import com.paul.postcode.tinytype.HttpError;
 import io.vavr.control.Either;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
@@ -19,14 +20,16 @@ import java.net.http.HttpResponse;
 
 @Component
 public class CrimesClient {
-    private static final String baseUrl = "https://data.police.uk/api/crimes-at-location";
+    @Value("${crimes-api}")
+    private String host;
+    private String api = "/api/crimes-at-location";
     @Autowired
     @Qualifier("crimes")
     private HttpClient client;
 
     public Either<HttpError, CrimeResult[]> getCrimes(PostCodeResult postCodeResult) {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "?date=2017-02&lat=" + postCodeResult.getLatitude() + "&lng=" + postCodeResult.getLongitude()))
+                .uri(URI.create(host + api + "?date=2017-02&lat=" + postCodeResult.getLatitude() + "&lng=" + postCodeResult.getLongitude()))
                 .header("Accept", "application/json")
                 .GET()
                 .build();
