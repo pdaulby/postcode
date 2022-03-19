@@ -53,6 +53,7 @@ class CrimeLocationResponseMapperTest {
 
         assertThat(actual, sameBeanAs(expected));
     }
+    
     @Test
     public void testMapping_noCrimes() {
         CrimeLocationResponse expected = new CrimeLocationResponse(new Crime[] {});
