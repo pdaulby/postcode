@@ -9,12 +9,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api")
 public class CrimeLocationController {
     @Autowired
     private CrimeLocationService service;
 
-    @GetMapping("/crime-at-postcode")
+    @GetMapping("/crimes-at-postcode/{postcode}")
     ResponseEntity<CrimeLocationResponse> getCrimesAtPostcode(@PathVariable String postcode){ //would be good to validate postcode here
         return service.getCrimesAtPostcode(postcode);
     }
