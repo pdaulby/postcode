@@ -1,14 +1,21 @@
 package com.paul.postcode.crimeLocation;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static com.paul.postcode.TestData.CrimeJson;
+import static com.shazam.shazamcrest.MatcherAssert.assertThat;
+import static com.shazam.shazamcrest.matcher.Matchers.sameBeanAs;
+
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.paul.postcode.crimeLocation.model.Crime;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.web.server.LocalServerPort;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-@SpringBootTest(properties= "spring.main.allow-bean-definition-overriding=true", webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(properties = {"spring.main.allow-bean-definition-overriding=true", "postcode-api=http://localhost:8089", "crimes-api=http://localhost:8089"},
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class CrimeLocationControllerTest {
 
     @LocalServerPort
@@ -17,9 +24,28 @@ class CrimeLocationControllerTest {
     @Autowired
     private TestRestTemplate restTemplate;
 
+    WireMockServer wireMockServer;
+    @BeforeEach
+    void setup() {
+        wireMockServer = new WireMockServer(8089);
+        wireMockServer.start();
+    }
+
     @Test
-    public void greetingShouldReturnDefaultMessage() throws Exception {
-        assertThat(this.restTemplate.getForObject("http://localhost:" + port + "/crimes-at-postcode/s71gq", String.class))
-                .contains("TODO mock api's");
+    public void shouldReturnCrime_PostcodeAndCrimesAPI_working() throws Exception {
+        wireMockServer.stubFor(get("/postcodes/s71gq")
+                .willReturn(ok()
+                        .withStatus(200)
+                        .withBody("{\"status\": 200,\"result\": {\"longitude\": 1.1,\"latitude\": 50.1}}")));
+
+        wireMockServer.stubFor(get("/api/crimes-at-location?date=2017-02&lat=50.1&lng=1.1")
+                .willReturn(ok()
+                        .withStatus(200)
+                        .withBody(CrimeJson)));
+
+        String expected = "{\"crimes\":[{\"category\":\"violent-crime\",\"street\":\"On or near Abbey Gate\",\"outcome\":\"Unable to prosecute suspect\",\"month\":\"2017-02\"}]}";
+        String actual = this.restTemplate.getForObject("http://localhost:" + port + "/crimes-at-postcode/s71gq", String.class);
+
+        assertThat(actual, sameBeanAs(expected));
     }
 }

@@ -30,7 +30,6 @@ public class PostCodeClient {
     private HttpClient client;
 
     public Either<HttpError, PostCodeResult> getPostcodeResult(String postcode) {
-        System.out.println(host + api);
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(host + api + StringUtils.deleteWhitespace(postcode)))
                 .header("Accept", "application/json")
