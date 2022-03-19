@@ -6,6 +6,8 @@ import static com.shazam.shazamcrest.MatcherAssert.assertThat;
 import static com.shazam.shazamcrest.matcher.Matchers.sameBeanAs;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
+import com.paul.postcode.crimeLocation.model.Crime;
+import com.paul.postcode.crimeLocation.model.CrimeLocationResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.web.server.LocalServerPort;
+import org.springframework.http.ResponseEntity;
 
 @SpringBootTest(properties = {"spring.main.allow-bean-definition-overriding=true", "postcode-api=http://localhost:8089", "crimes-api=http://localhost:8089"},
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -36,7 +39,7 @@ class CrimeLocationControllerTest {
     }
 
     @Test
-    public void shouldReturnCrime_PostcodeAndCrimesAPI_working() throws Exception {
+    public void shouldReturnCrime_PostcodeAndCrimesAPI_working() {
         wireMockServer.stubFor(get("/postcodes/s71gq")
                 .willReturn(ok()
                         .withStatus(200)
@@ -47,14 +50,23 @@ class CrimeLocationControllerTest {
                         .withStatus(200)
                         .withBody(CrimeJson)));
 
-        String expected = "{\"crimes\":[{\"category\":\"violent-crime\",\"street\":\"On or near Abbey Gate\",\"outcome\":\"Unable to prosecute suspect\",\"month\":\"2017-02\"}]}";
-        String actual = this.restTemplate.getForObject("http://localhost:" + port + "/crimes-at-postcode/s71gq", String.class);
+        Crime expectedCrime = Crime.builder()
+                .month("2017-02")
+                .outcome("Unable to prosecute suspect")
+                .street("On or near Abbey Gate")
+                .category("violent-crime")
+                .build();
 
-        assertThat(actual, sameBeanAs(expected));
+        ResponseEntity<CrimeLocationResponse> expected =
+                ResponseEntity.status(200).body(new CrimeLocationResponse(new Crime[]{ expectedCrime }));
+        ResponseEntity<CrimeLocationResponse> actual =
+                this.restTemplate.getForEntity("http://localhost:" + port + "/crimes-at-postcode/s71gq", CrimeLocationResponse.class);
+
+        assertThat(actual, sameBeanAs(expected).ignoring("headers"));
     }
 
     @Test
-    public void shouldReturnCrime_CrimesAPIFailing() throws Exception {
+    public void shouldReturnCrime_CrimesAPIFailing() {
         wireMockServer.stubFor(get("/postcodes/s71gq")
                 .willReturn(ok()
                         .withStatus(200)
@@ -65,22 +77,29 @@ class CrimeLocationControllerTest {
                         .withStatus(500)
                         .withBody("")));
 
-        String expected = "{\"errorMessage\":\"There was an issue with the Police Data API\"}";
-        String actual = this.restTemplate.getForObject("http://localhost:" + port + "/crimes-at-postcode/s71gq", String.class);
+        ResponseEntity<CrimeLocationResponse> expected =
+                ResponseEntity.status(502).body(new CrimeLocationResponse("There was an issue with the Police Data API"));
+        ResponseEntity<CrimeLocationResponse> actual =
+                this.restTemplate.getForEntity("http://localhost:" + port + "/crimes-at-postcode/s71gq", CrimeLocationResponse.class);
 
-        assertThat(actual, sameBeanAs(expected));
+        assertThat(actual, sameBeanAs(expected).ignoring("headers"));
     }
 
     @Test
-    public void shouldReturnCrime_PostcodeAPINotFound() throws Exception {
+    public void shouldReturnCrime_PostcodeAPINotFound() {
         wireMockServer.stubFor(get("/postcodes/s73gq")
                 .willReturn(ok()
                         .withStatus(404)
                         .withBody("{\"status\": 404,\"error\": \"Postcode not found\"}")));
 
-        String expected = "{\"errorMessage\":\"Postcode not Found\"}";
-        String actual = this.restTemplate.getForObject("http://localhost:" + port + "/crimes-at-postcode/s73gq", String.class);
+        ResponseEntity<CrimeLocationResponse> expected =
+                ResponseEntity.status(404).body(new CrimeLocationResponse("Postcode not Found"));
+        ResponseEntity<CrimeLocationResponse> actual =
+                this.restTemplate.getForEntity("http://localhost:" + port + "/crimes-at-postcode/s73gq", CrimeLocationResponse.class);
 
-        assertThat(actual, sameBeanAs(expected));
+        assertThat(actual, sameBeanAs(expected).ignoring("headers"));
     }
+
+
+
 }
