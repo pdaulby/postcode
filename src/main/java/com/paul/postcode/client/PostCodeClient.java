@@ -4,9 +4,12 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.paul.postcode.client.model.PostCodeResult;
 import com.paul.postcode.client.model.PostCodeResultBody;
+import com.paul.postcode.tinytype.HttpError;
+import io.vavr.control.Either;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -14,7 +17,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.Optional;
 
 @Component
 public class PostCodeClient {
@@ -23,11 +25,7 @@ public class PostCodeClient {
     @Qualifier("postcode")
     private HttpClient client;
 
-    public PostCodeClient() {
-        System.out.println("TESTESTEST");
-    }
-
-    public Optional<PostCodeResult> getPostcodeResult(String postcode) {
+    public Either<HttpError, PostCodeResult> getPostcodeResult(String postcode) {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + StringUtils.deleteWhitespace(postcode)))
                 .header("Accept", "application/json")
@@ -36,17 +34,20 @@ public class PostCodeClient {
         try {
             return getResult(request);
         } catch (IOException | InterruptedException e) {
-            return Optional.empty();
+            return Either.left(new HttpError(HttpStatus.INTERNAL_SERVER_ERROR, "There was an issue reading the postcode data"));
         }
     }
 
-    private Optional<PostCodeResult> getResult(HttpRequest request) throws IOException, InterruptedException {
+    private Either<HttpError, PostCodeResult> getResult(HttpRequest request) throws IOException, InterruptedException {
         HttpResponse<String> httpResponse = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-        if (httpResponse.statusCode() != 200) {
-            return Optional.empty();
+        if (httpResponse.statusCode() == 404) {
+            return Either.left(new HttpError(HttpStatus.NOT_FOUND, "Postcode not Found"));
         }
-        return Optional.of(new ObjectMapper()
+        if (httpResponse.statusCode() != 200) {
+            return Either.left(new HttpError(HttpStatus.BAD_GATEWAY, "There was an issue with the Postcode API"));
+        }
+        return Either.right(new ObjectMapper()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 .readValue(httpResponse.body(), PostCodeResultBody.class)
                 .getResult());

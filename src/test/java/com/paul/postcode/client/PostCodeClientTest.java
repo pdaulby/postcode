@@ -2,10 +2,13 @@ package com.paul.postcode.client;
 
 import com.paul.postcode.TestConfig;
 import com.paul.postcode.client.model.PostCodeResult;
+import com.paul.postcode.tinytype.HttpError;
+import io.vavr.control.Either;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.context.ContextConfiguration;
 
 import java.io.IOException;
@@ -13,7 +16,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.Optional;
 
 import static com.shazam.shazamcrest.MatcherAssert.assertThat;
 import static com.shazam.shazamcrest.matcher.Matchers.sameBeanAs;
@@ -34,20 +36,30 @@ class PostCodeClientTest {
         String responseBody = "{\"status\": 200,\"result\": {\"longitude\": -1.484746,\"latitude\": 53.359747}}";
         MockRequest("S71GQ", 200, responseBody);
 
-        Optional<PostCodeResult> expected = Optional.of(new PostCodeResult(53.359747f, -1.484746f));
-        Optional<PostCodeResult> actual = postCodeClient.getPostcodeResult("S71GQ");
+        Either<HttpError, PostCodeResult> expected = Either.right(new PostCodeResult(53.359747f, -1.484746f));
+        Either<HttpError, PostCodeResult> actual = postCodeClient.getPostcodeResult("S71GQ");
 
         assertThat(actual, sameBeanAs(expected));
     }
-
 
     @Test
     public void PostCodeClientTest_spaces() throws IOException, InterruptedException {
         String responseBody = "{\"status\": 200,\"result\": {\"longitude\": -1.484746,\"latitude\": 53.359747}}";
         MockRequest("S71GQ", 200, responseBody);
 
-        Optional<PostCodeResult> expected = Optional.of(new PostCodeResult(53.359747f, -1.484746f));
-        Optional<PostCodeResult> actual = postCodeClient.getPostcodeResult("S7 1GQ");
+        Either<HttpError, PostCodeResult> expected = Either.right(new PostCodeResult(53.359747f, -1.484746f));
+        Either<HttpError, PostCodeResult> actual = postCodeClient.getPostcodeResult("S7 1GQ");
+
+        assertThat(actual, sameBeanAs(expected));
+    }
+
+    @Test
+    public void PostCodeClientTest_malformedResponse() throws IOException, InterruptedException {
+        String responseBody = "{\"statgitu84746,\"latitude\": 53.359747}}";
+        MockRequest("S71GQ", 200, responseBody);
+
+        Either<HttpError, PostCodeResult> expected = Either.left(new HttpError(HttpStatus.INTERNAL_SERVER_ERROR, "There was an issue reading the postcode data"));
+        Either<HttpError, PostCodeResult> actual = postCodeClient.getPostcodeResult("S7 1GQ");
 
         assertThat(actual, sameBeanAs(expected));
     }
@@ -57,8 +69,19 @@ class PostCodeClientTest {
         String responseBody = "{\"status\": 200,\"result\": {\"longitude\": -1.484746,\"latitude\": 53.359747}}";
         MockRequest("S73GQ", 404, responseBody);
 
-        Optional<PostCodeResult> expected = Optional.empty();
-        Optional<PostCodeResult> actual =  postCodeClient.getPostcodeResult("S73GQ");
+        Either<HttpError, PostCodeResult> expected = Either.left(new HttpError(HttpStatus.NOT_FOUND, "Postcode not Found"));
+        Either<HttpError, PostCodeResult> actual =  postCodeClient.getPostcodeResult("S73GQ");
+
+        assertThat(actual, sameBeanAs(expected));
+    }
+
+    @Test
+    public void PostCodeClientTest_500() throws IOException, InterruptedException {
+        String responseBody = "{\"status\": 200,\"result\": {\"longitude\": -1.484746,\"latitude\": 53.359747}}";
+        MockRequest("S73GQ", 500, responseBody);
+
+        Either<HttpError, PostCodeResult> expected = Either.left(new HttpError(HttpStatus.BAD_GATEWAY, "There was an issue with the Postcode API"));
+        Either<HttpError, PostCodeResult> actual =  postCodeClient.getPostcodeResult("S73GQ");
 
         assertThat(actual, sameBeanAs(expected));
     }

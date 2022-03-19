@@ -4,8 +4,11 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.paul.postcode.client.model.CrimeResult;
 import com.paul.postcode.client.model.PostCodeResult;
+import com.paul.postcode.tinytype.HttpError;
+import io.vavr.control.Either;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -22,7 +25,7 @@ public class CrimesClient {
     @Qualifier("crimes")
     private HttpClient client;
 
-    public Optional<CrimeResult[]> getCrimes(PostCodeResult postCodeResult) {
+    public Either<HttpError, CrimeResult[]> getCrimes(PostCodeResult postCodeResult) {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "?date=2017-02&lat=" + postCodeResult.getLatitude() + "&lng=" + postCodeResult.getLongitude()))
                 .header("Accept", "application/json")
@@ -31,17 +34,17 @@ public class CrimesClient {
         try {
             return getCrimeResults(request);
         } catch (IOException | InterruptedException e) {
-            return Optional.empty();
+            return Either.left(new HttpError(HttpStatus.INTERNAL_SERVER_ERROR, "There was an issue reading the crime data"));
         }
     }
 
-    private Optional<CrimeResult[]> getCrimeResults(HttpRequest request) throws IOException, InterruptedException {
+    private Either<HttpError, CrimeResult[]> getCrimeResults(HttpRequest request) throws IOException, InterruptedException {
         HttpResponse<String> httpResponse = client.send(request, HttpResponse.BodyHandlers.ofString());
         if (httpResponse.statusCode() != 200) {
-            return Optional.empty();
+            return Either.left(new HttpError(HttpStatus.BAD_GATEWAY, "There was an issue with the Police Data API"));
         }
         String body = httpResponse.body();
-        return Optional.of(new ObjectMapper()
+        return Either.right(new ObjectMapper()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 .readValue(body, CrimeResult[].class));
     }
