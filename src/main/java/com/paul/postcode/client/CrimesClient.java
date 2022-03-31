@@ -29,7 +29,7 @@ public class CrimesClient {
 
     public Either<HttpError, CrimeResult[]> getCrimes(PostCodeResult postCodeResult) {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(host + api + "?date=2017-02&lat=" + postCodeResult.getLatitude() + "&lng=" + postCodeResult.getLongitude()))
+                .uri(URI.create(host + api + "?date=2021-02&lat=" + postCodeResult.getLatitude() + "&lng=" + postCodeResult.getLongitude()))
                 .header("Accept", "application/json")
                 .GET()
                 .build();
@@ -46,8 +46,9 @@ public class CrimesClient {
             return Either.left(new HttpError(HttpStatus.BAD_GATEWAY, "There was an issue with the Police Data API"));
         }
         String body = httpResponse.body();
-        return Either.right(new ObjectMapper()
+        var x = new ObjectMapper()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-                .readValue(body, CrimeResult[].class));
+                .readValue(body, CrimeResult[].class);
+        return Either.right(x);
     }
 }

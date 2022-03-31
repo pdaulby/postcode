@@ -15,10 +15,15 @@ public class CrimeLocationResponseMapper {
     }
 
     private Crime ToCrime(CrimeResult crimeResult) {
+        String street = crimeResult.getLocation() == null ? null
+                : crimeResult.getLocation().getStreet() == null ? null
+                : crimeResult.getLocation().getStreet().getName();
+        String outcome =  crimeResult.getOutcome_status() == null ? null
+                : crimeResult.getOutcome_status().getCategory();
         return Crime.builder()
                 .category(crimeResult.getCategory())
-                .street(crimeResult.getLocation().getStreet().getName())
-                .outcome(crimeResult.getOutcome_status().getCategory())
+                .street(street)
+                .outcome(outcome)
                 .month(crimeResult.getMonth())
                 .build();
     }
